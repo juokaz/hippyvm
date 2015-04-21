@@ -591,3 +591,23 @@ k_PyExceptionAdapter = def_class('PyException',
 from hippy.builtin_klass import k_Exception
 # Indicates an error in PHP->Py glue code
 k_BridgeException = def_class('BridgeException', [], [], extends=k_Exception)
+
+from hippy.klass import ClassBase as PHPClassBase
+class W_PyClassAdapter(PHPClassBase):
+
+    def __init__(self, w_py_kls):
+        PHPClassBase.__init__(self, w_py_kls.name)
+        self.w_py_kls = w_py_kls
+
+    def call_args(self, interp, args_w, w_this=None, thisclass=None,
+                  closureargs=None):
+        py_space = interp.py_space
+
+        from pypy.interpreter.argument import Arguments
+        w_py_args = Arguments(py_space, [x.to_py(interp) for x in args_w])
+        w_py_inst = py_space.call_args(self.w_py_kls, w_py_args)
+        return w_py_inst.to_php(interp)
+
+k_PyClassAdapter = def_class('PyClassAdapter',
+                             [], [],
+                             instance_class=W_PyGenericAdapter)
