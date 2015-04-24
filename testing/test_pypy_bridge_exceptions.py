@@ -430,7 +430,8 @@ class TestPyPyBridgeExceptions(BaseTestInterpreter):
                 echo $e->getMessage();
             }
         ''')
-        assert php_space.str_w(output[0]) == "Failed to find Python function or method"
+        err_s = "Method 'f' is not a static Python method"
+        assert php_space.str_w(output[0]) == err_s
 
     def test_except_kwarg_from_php3(self, php_space):
         output = self.run('''
@@ -442,7 +443,7 @@ class TestPyPyBridgeExceptions(BaseTestInterpreter):
                 echo $e->getMessage();
             }
         ''')
-        assert php_space.str_w(output[0]) == "Invalid argument to call_py_func"
+        assert php_space.str_w(output[0]) == "Not a Python callable"
 
     def test_except_kwarg_from_php4(self, php_space):
         output = self.run('''
@@ -531,13 +532,135 @@ class TestPyPyBridgeExceptions(BaseTestInterpreter):
 
             embed_py_func_global($src);
             try {
+                // 1 indistinguishable from "1" in array key in PHP
                 call_py_func("f", [], [1 => "z"]);
                 echo "fail";
             } catch (BridgeException $e) {
                 echo $e->getMessage();
             }
         ''')
-        assert php_space.str_w(output[0]) == "Python kwargs must have string keys"
+        assert php_space.str_w(output[0]) == "TypeError: f() got an unexpected keyword argument '1'"
+
+    def test_except_kwarg_from_php11(self, php_space):
+        output = self.run('''
+            // any old python function
+            $sys = import_py_mod("sys");
+            $rl = $sys->getrecursionlimit;
+
+            try {
+                call_py_func($rl, 1, []); // type is wrong
+                echo "fail";
+            } catch (BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Bad call_py_func argument specification"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_except_kwarg_from_php12(self, php_space):
+        output = self.run('''
+            // any old python function
+            $sys = import_py_mod("sys");
+            $rl = $sys->getrecursionlimit;
+
+            try {
+                call_py_func($rl, [], 1); // type is wrong
+                echo "fail";
+            } catch (BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Bad call_py_func argument specification"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_except_kwarg_from_php13(self, php_space):
+        output = self.run('''
+            class A {
+                function a() {} // not in Python
+            };
+
+            try {
+                call_py_func('A::a', [], []);
+                echo "fail";
+            } catch (BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Method 'a' is not a static Python method"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_except_kwarg_from_php14(self, php_space):
+        output = self.run('''
+            class A {
+            };
+
+            $src = 'def a(): pass'; // not static
+            embed_py_meth("A", $src);
+
+            try {
+                call_py_func('A::a', [], []);
+                echo "fail";
+            } catch (BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Method 'a' is not a static Python method"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_kwarg_from_php15(self, php_space):
+        output = self.run('''
+            $A = 1;
+            try {
+                call_py_func(["A", "f"], [], []);
+                echo "fail";
+            } catch(BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Name 'A' is not a class"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_kwarg_from_php16(self, php_space):
+        output = self.run('''
+            $pysrc = <<<EOD
+            def f():
+                A = 1 # not a class
+                php_src = "function g() { call_py_func('A::k', [], []); }"
+                g = embed_php_func(php_src)
+                return g
+            EOD;
+            $f = embed_py_func($pysrc);
+            $g = $f();
+
+            try {
+                $g();
+                echo "fail";
+            } catch(BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Name 'A' is not a class"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_kwarg_from_php17(self, php_space):
+        output = self.run('''
+            $src = <<<EOD
+            def f(a="a", b="b", c="c"):
+                  return a + b + c
+            EOD;
+
+            $f = embed_py_func_global($src);
+
+            try {
+                // positional arguments with string keys -- bogus
+                call_py_func("f", ["b" => "b"], ["a" => "z"]);
+                echo "fail";
+            } catch(BridgeException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "Bad call_py_func argument specification"
+        assert php_space.str_w(output[0]) == err_s
 
     def test_unbound_meth_too_no_self(self, php_space):
         output = self.run('''
@@ -695,3 +818,104 @@ class TestPyPyBridgeExceptions(BaseTestInterpreter):
         ''')
         # XXX suitable error message
         assert php_space.str_w(output[0]) == "ok"
+
+    def test_compile_py_in_py(self, php_space):
+        output = self.run('''
+
+        $src = <<<EOD
+        def f():
+            src2 = 'def g(): return 123'
+            g = embed_py_func(src2)
+            return g()
+        EOD;
+        $f = embed_py_func($src);
+        try {
+            $f();
+            echo 'fail';
+        } catch (PyException $e) {
+            echo $e->getMessage();
+        }
+        ''')
+        err_s = 'Adapting forbidden PHP function'
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_compile_py_in_py2(self, php_space):
+        output = self.run('''
+        $src = <<<EOD
+        def f():
+            src2 = 'def g(): 123'
+            embed_py_func_global(src2)
+        EOD;
+        $f = embed_py_func($src);
+        try {
+            $f();
+            echo 'fail';
+        } catch (PyException $e) {
+            echo $e->getMessage();
+        }
+        ''')
+        err_s = 'Adapting forbidden PHP function'
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_compile_py_in_py3(self, php_space):
+        output = self.run('''
+        {
+            class A {};
+
+            $src = <<<EOD
+def f():
+    src2 = 'def g(): return 123'
+    embed_py_meth('A', src2)
+EOD;
+            $f = embed_py_func($src);
+
+            $a = new A();
+            try {
+                $f();
+                echo 'fail';
+            } catch (PyException $e) {
+                echo $e->getMessage();
+            }
+        }
+        ''')
+        err_s = 'Adapting forbidden PHP function'
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_compile_php_in_php(self, php_space):
+        output = self.run('''
+
+        $src = <<<EOD
+        def f():
+            src2 = "function g() { embed_php_func('function h(){}'); }"
+            return embed_php_func(src2)
+        EOD;
+        $f = embed_py_func($src);
+        try {
+            $ff = $f();
+            $ff();
+            echo 'fail';
+        } catch (BridgeException $e) {
+            echo $e->getMessage();
+        }
+        ''')
+        err_s = "Adapting forbidden Python function"
+        assert php_space.str_w(output[0]) == err_s
+
+    def test_embed_php_func_two_funcs(self, php_space):
+        output = self.run('''
+            $pysrc = <<<EOD
+            def comp():
+                php_src = "function f(){}; function g(){};"
+                g = embed_php_func(php_src)
+            EOD;
+
+            $comp = embed_py_func($pysrc);
+            try {
+                $comp();
+                echo "fail";
+            } catch (PyException $e) {
+                echo $e->getMessage();
+            }
+        ''')
+        err_s = "embed_php_func expects source code for a single PHP function"
+        assert php_space.str_w(output[0]) == err_s

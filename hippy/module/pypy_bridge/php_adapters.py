@@ -239,6 +239,16 @@ class W_PHPFuncAdapter(W_Root):
         assert not isinstance(w_php_func, W_PyFuncAdapter) and \
             not isinstance(w_php_func, W_PyFuncGlobalAdapter)
 
+        # compiling python functions inside python makes no sense
+        # We catch this before it is called.
+        from hippy.module.pypy_bridge.bridge import (
+            embed_py_func, embed_py_func_global, embed_py_meth)
+        if w_php_func is embed_py_func or \
+                w_php_func is embed_py_func_global or \
+                w_php_func is embed_py_meth:
+            _raise_py_bridgeerror(space,
+                                  "Adapting forbidden PHP function")
+
         self.space = space
         self.w_php_func = w_php_func
 
@@ -261,26 +271,27 @@ class W_PHPFuncAdapter(W_Root):
     def fast_call(self, args):
         py_space = self.space
         php_interp = self.space.get_php_interp()
+        w_php_func = self.w_php_func
 
         w_php_args_elems = [None] * len(args)
         for i, w_py_arg in enumerate(args):
-            if self.w_php_func.needs_ref(i):
+            if w_php_func.needs_ref(i):
                 # if you try to pass a reference argument by value, fail.
                 if not isinstance(w_py_arg, W_PHPRefAdapter):
                     err_str = "Arg %d of PHP func '%s' is pass by reference" % \
-                            (i + 1, self.w_php_func.name)
+                            (i + 1, w_php_func.name)
                     _raise_py_bridgeerror(py_space, err_str)
                 w_php_args_elems[i] = w_py_arg.w_php_ref
             else:
                 # if you pass a value argument by reference, fail.
                 if isinstance(w_py_arg, W_PHPRefAdapter):
                     err_str = "Arg %d of PHP func '%s' is pass by value" % \
-                            (i + 1, self.w_php_func.name)
+                            (i + 1, w_php_func.name)
                     _raise_py_bridgeerror(py_space, err_str)
                 w_php_args_elems[i] = w_py_arg.to_php(php_interp)
 
         try:
-            res = self.w_php_func.call_args(php_interp, w_php_args_elems)
+            res = w_php_func.call_args(php_interp, w_php_args_elems)
         except Throw as w_php_throw:
             w_php_exn = w_php_throw.w_exc
             raise OperationError(py_space.builtin.get("PHPException"),

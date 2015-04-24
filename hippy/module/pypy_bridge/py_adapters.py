@@ -134,6 +134,13 @@ class W_EmbeddedPyCallable(W_InvokeCall):
         from hippy.module.pypy_bridge.php_adapters import W_PHPFuncAdapter
         assert not isinstance(w_py_func, W_PHPFuncAdapter)
 
+        w_embed_php_func = interp.py_space.builtin.get("embed_php_func")
+        if w_py_func == w_embed_php_func:
+            from hippy.module.pypy_bridge.bridge import (
+                _raise_php_bridgeexception)
+            _raise_php_bridgeexception(interp,
+                                       "Adapting forbidden Python function")
+
         W_InvokeCall.__init__(self, None, None, None)
         self.w_py_func = w_py_func
         self.php_args_by_ref, self.php_static, self.php_access = \
@@ -170,6 +177,9 @@ class W_EmbeddedPyCallable(W_InvokeCall):
 
     def is_py_call(self):
         return True
+
+    def get_wrapped_py_obj(self):
+        return self.w_py_func
 
 class W_PyFuncGlobalAdapter(AbstractFunction):
     _immutable_fields_ = ["w_py_callable"]
@@ -283,6 +293,9 @@ class W_PyFuncAdapter(W_InstanceObject):
 
     def get_identifier(self):
         return self.w_py_callable.name.lower()
+
+    def get_wrapped_py_obj(self):
+        return self.w_py_func
 
 k_PyFuncAdapter = def_class('PyFunc', [])
 

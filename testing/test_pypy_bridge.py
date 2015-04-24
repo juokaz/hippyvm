@@ -1248,7 +1248,6 @@ class TestPyPyBridge(BaseTestInterpreter):
         assert php_space.str_w(output[5]) == "abc"
         assert php_space.str_w(output[6]) == "jkl"
 
-    @pytest.mark.xfail
     def test_kwarg_from_php3(self, php_space):
         output = self.run('''
             class A {};
@@ -1276,7 +1275,6 @@ class TestPyPyBridge(BaseTestInterpreter):
         assert php_space.str_w(output[5]) == "abc"
         assert php_space.str_w(output[6]) == "jkl"
 
-    @pytest.mark.xfail
     def test_kwarg_from_php4(self, php_space):
         output = self.run('''
             $src = <<<EOD
@@ -1324,7 +1322,6 @@ class TestPyPyBridge(BaseTestInterpreter):
         assert php_space.str_w(output[5]) == "abc"
         assert php_space.str_w(output[6]) == "jkl"
 
-    @pytest.mark.xfail
     def test_kwarg_from_php6(self, php_space):
         output = self.run('''
             class A {};
@@ -1350,6 +1347,55 @@ class TestPyPyBridge(BaseTestInterpreter):
         assert php_space.str_w(output[4]) == "opz"
         assert php_space.str_w(output[5]) == "abc"
         assert php_space.str_w(output[6]) == "jkl"
+
+    def test_kwarg_from_php7(self, php_space):
+        output = self.run('''
+            $src = <<<EOD
+            def mk():
+                class F(object):
+                    def __call__(self, a="a", b="b", c="c"):
+                          return a + b + c
+                return F()
+            EOD;
+            embed_py_func_global($src);
+
+            $f = mk();
+
+            echo call_py_func($f, [], ["a" => "z"]);
+            echo call_py_func($f, ["z"], ["c" => "o"]);
+            echo call_py_func($f, [], ["a" => "x", "b" => "y", "c" => "z"]);
+            echo call_py_func($f, [], ["b" => "y", "c" => "z", "a" => "x"]);
+            echo call_py_func($f, ["o", "p"], ["c" => "z"]);
+            echo call_py_func($f, [], []);
+            echo call_py_func($f, ["j", "k", "l"], []);
+        ''')
+        assert php_space.str_w(output[0]) == "zbc"
+        assert php_space.str_w(output[1]) == "zbo"
+        assert php_space.str_w(output[2]) == "xyz"
+        assert php_space.str_w(output[3]) == "xyz"
+        assert php_space.str_w(output[4]) == "opz"
+        assert php_space.str_w(output[5]) == "abc"
+        assert php_space.str_w(output[6]) == "jkl"
+
+    def test_kwarg_from_php8(self, php_space):
+        output = self.run('''
+            class A { static function k() { return "fail"; } };
+            $pysrc = <<<EOD
+            def f():
+                class A(object):
+                    @staticmethod
+                    def k():
+                        return "OK"
+                php_src = "function g() { return call_py_func('A::k', [], []); }"
+                g = embed_php_func(php_src)
+                return g
+            EOD;
+            $f = embed_py_func($pysrc);
+            $g = $f();
+
+            echo $g();
+        ''')
+        assert php_space.str_w(output[0]) == "OK"
 
     def test_new_on_py_class(self, php_space):
         output = self.run('''
@@ -1456,3 +1502,67 @@ class TestPyPyBridge(BaseTestInterpreter):
         ''')
         assert php_space.int_w(output[0]) == 456
 
+class TestPyPyBridgeInterp(object):
+
+    def test_php_code_cache(self):
+        from pypy.config.pypyoption import get_pypy_config
+        from hippy.interpreter import Interpreter
+        from pypy.config.pypyoption import enable_translationmodules
+        from pypy.objspace.std import StdObjSpace as PyStdObjSpace
+        from hippy.objspace import getspace
+        from pypy.module.__builtin__.hippy_bridge import (
+            _compile_php_func_from_string_cached)
+
+        pypy_config = get_pypy_config(translating=False)
+        py_space = PyStdObjSpace(pypy_config)
+        php_space = getspace()
+        interp = Interpreter(php_space, py_space=py_space)
+
+        src = '<?php function f($a) { return "hello $a"; } ?>'
+
+        # compile same source code twice
+        comp1 = _compile_php_func_from_string_cached(interp, src)
+        comp2 = _compile_php_func_from_string_cached(interp, src)
+
+        # This function however, is an imposter
+        src2 = '<?php function f($a) { return ""; } ?>'
+        comp3 = _compile_php_func_from_string_cached(interp, src2)
+
+        assert comp1 is comp2
+        assert comp1 is not comp3
+        assert comp2 is not comp3
+
+    def test_php_code_cache_clone(self):
+        from pypy.config.pypyoption import get_pypy_config
+        from hippy.interpreter import Interpreter
+        from pypy.config.pypyoption import enable_translationmodules
+        from pypy.objspace.std import StdObjSpace as PyStdObjSpace
+        from hippy.objspace import getspace
+        from pypy.module.__builtin__.hippy_bridge import (
+            _compile_php_func_from_string_cached)
+
+        pypy_config = get_pypy_config(translating=False)
+        py_space = PyStdObjSpace(pypy_config)
+        php_space = getspace()
+        interp = Interpreter(php_space, py_space=py_space)
+
+        src = '<?php function f($a) { return "hello $a"; } ?>'
+
+        # compile same source code twice
+        bc1 = _compile_php_func_from_string_cached(interp, src)
+        bc1.py_scope = 1 # would really be a Py_Scope instance.
+        bc2 = bc1.clone()
+
+        check_attrs = ["code", "name", "filename", "startlineno",
+                       "sourcelines", "consts", "names", "varnames",
+                       "stackdepth", "var_to_pos", "names_to_pos",
+                       "late_declarations", "classes", "functions",
+                       "method_of_class", "bc_mapping", "superglobals",
+                       "this_var_num", "static_vars"]
+
+        for name in check_attrs:
+            a1 = getattr(bc1, name)
+            a2 = getattr(bc2, name)
+            assert a1 == a2
+
+        assert bc1.py_scope is not bc2.py_scope
