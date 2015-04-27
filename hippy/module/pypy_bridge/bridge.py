@@ -11,7 +11,7 @@ from hippy.module.pypy_bridge.py_adapters import (
         W_PyClassAdapter)
 from hippy.builtin_klass import k_Exception, W_ExceptionObject
 from hippy.error import PHPException, VisibilityError
-from hippy.klass import ClassBase
+from hippy.klass import ClassBase, W_BoundMethod
 
 from pypy.module.sys.version import CPYTHON_VERSION, PYPY_VERSION
 from pypy.config.pypyoption import get_pypy_config
@@ -230,6 +230,12 @@ def _call_py_func_find_static_py_meth_in_php_class(interp, w_php_kls, meth_name)
     else:
         return w_php_meth.method_func.get_wrapped_py_obj()
 
+def _call_py_func_find_static_py_meth_in_py_cls_adapter(interp, w_php_kls, meth_name):
+        w_py_kls = w_php_kls.get_wrapped_py_obj()
+        w_py_meth = interp.py_space.getattr(w_py_kls, interp.py_space.wrap(meth_name))
+        assert isinstance(w_py_meth, PyFunction) # XXX
+        return w_py_meth
+
 def _call_py_func_find_static_py_meth(interp, class_name, meth_name):
     """Here we aim to lookup a static method given a class name
     and a method name. There are two success cases: 1) the class is a
@@ -262,10 +268,8 @@ def _call_py_func_find_static_py_meth(interp, class_name, meth_name):
                                                              meth_name)
     elif isinstance(w_kls, W_PyClassAdapter):
         # It's an adapted Python class.
-        w_py_kls = w_kls.get_wrapped_py_obj()
-        w_py_meth = interp.py_space.getattr(w_py_kls, interp.py_space.wrap(meth_name))
-        assert isinstance(w_py_meth, PyFunction) # XXX
-        return w_py_meth
+        return _call_py_func_find_static_py_meth_in_py_cls_adapter(
+            interp, w_kls, meth_name)
     elif isinstance(w_kls, ClassBase):
         # A PHP class
         return _call_py_func_find_static_py_meth_in_php_class(interp, w_kls,
@@ -308,23 +312,28 @@ def _call_py_func_find_target(interp, w_func_or_w_name):
             w_py_func = _call_py_func_find_static_py_meth(interp, class_name,
                                                           meth_name)
         else:
-            # dynamic method call
-            ctx_kls = interp.get_contextclass()
-            try:
-                w_py_meth = w_class_name_or_inst.getmeth(php_space, meth_name,
-                                                         ctx_kls)
-            except VisibilityError:
-                w_py_meth = None
-
-            if w_py_meth is None:
-                w_py_func = None
+            # dynamic or static method call
+            if isinstance(w_class_name_or_inst, W_PyClassAdapter):
+                # Python class adapter, hence static method call
+                w_py_func = _call_py_func_find_static_py_meth_in_py_cls_adapter(
+                    interp, w_class_name_or_inst, meth_name)
             else:
-                from hippy.klass import W_BoundMethod
-                assert isinstance(w_py_meth, W_BoundMethod)
-                w_method_func = w_py_meth.method_func
-                assert isinstance(w_method_func, W_PyMethodFuncAdapter)
-                w_py_func = w_method_func.get_wrapped_py_obj()
-                w_self = w_class_name_or_inst.to_py(interp)
+                # dynamic method call
+                ctx_kls = interp.get_contextclass()
+                try:
+                    w_py_meth = w_class_name_or_inst.getmeth(php_space, meth_name,
+                                                             ctx_kls)
+                except VisibilityError:
+                    w_py_meth = None
+
+                if w_py_meth is None:
+                    w_py_func = None
+                else:
+                    assert isinstance(w_py_meth, W_BoundMethod)
+                    w_method_func = w_py_meth.method_func
+                    assert isinstance(w_method_func, W_PyMethodFuncAdapter)
+                    w_py_func = w_method_func.get_wrapped_py_obj()
+                    w_self = w_class_name_or_inst.to_py(interp)
     elif isinstance(w_func_or_w_name, W_PHP_Root):
         # maybe a python callable
         w_py_func = w_func_or_w_name.get_wrapped_py_obj()
