@@ -919,3 +919,31 @@ EOD;
         ''')
         err_s = "embed_php_func expects source code for a single PHP function"
         assert php_space.str_w(output[0]) == err_s
+
+    @pytest.mark.xfail
+    def test_call_pyclass_attr(self, php_space):
+        output = self.run('''
+        $src = <<<EOD
+        def f():
+            class A:
+                x = 1
+            return A
+        EOD;
+        embed_py_func_global($src);
+        $a = f();
+        $a::x(); // bogus
+        ''')
+
+    @pytest.mark.xfail
+    def test_call_py_func_on_pyclass_attr(self, php_space):
+        output = self.run('''
+        $src = <<<EOD
+        def f():
+            class A:
+                x = 1
+            return A
+        EOD;
+        embed_py_func_global($src);
+        $a = f();
+        call_py_func([$a, "x"], [], []); // bogus
+        ''')
