@@ -231,10 +231,7 @@ def _call_py_func_find_static_py_meth_in_php_class(interp, w_php_kls, meth_name)
         return w_php_meth.method_func.get_wrapped_py_obj()
 
 def _call_py_func_find_static_py_meth_in_py_cls_adapter(interp, w_php_kls, meth_name):
-        w_py_kls = w_php_kls.get_wrapped_py_obj()
-        w_py_meth = interp.py_space.getattr(w_py_kls, interp.py_space.wrap(meth_name))
-        assert isinstance(w_py_meth, PyFunction) # XXX
-        return w_py_meth
+    return w_php_kls.find_static_py_meth(interp, meth_name)
 
 def _call_py_func_find_static_py_meth(interp, class_name, meth_name):
     """Here we aim to lookup a static method given a class name

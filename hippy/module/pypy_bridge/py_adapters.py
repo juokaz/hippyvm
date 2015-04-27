@@ -634,6 +634,12 @@ class W_PyClassAdapter(PHPClassBase):
     def get_wrapped_py_obj(self):
         return self.w_py_kls
 
+    def find_static_py_meth(self, interp, meth_name):
+            w_py_meth = interp.py_space.getattr(self.w_py_kls,
+                                                interp.py_space.wrap(meth_name))
+            assert isinstance(w_py_meth, PyFunction) # XXX
+            return w_py_meth
+
 k_PyClassAdapter = def_class('PyClassAdapter',
                              [], [],
                              instance_class=W_PyGenericAdapter)

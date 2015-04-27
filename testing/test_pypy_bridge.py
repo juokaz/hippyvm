@@ -1532,6 +1532,22 @@ class TestPyPyBridge(BaseTestInterpreter):
         ''')
         assert php_space.int_w(output[0]) == 456
 
+    def test_call_pyclass_static_meth(self, php_space):
+        output = self.run('''
+        $src = <<<EOD
+        def f():
+            class A:
+                @staticmethod
+                def x():
+                    return 666
+            return A
+        EOD;
+        embed_py_func_global($src);
+        $a = f();
+        echo($a::x());
+        ''')
+        assert php_space.int_w(output[0]) == 666
+
 class TestPyPyBridgeInterp(object):
 
     def test_php_code_cache(self):

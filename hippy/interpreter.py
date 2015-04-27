@@ -1396,6 +1396,9 @@ class Interpreter(object):
         return pc
 
     def getstaticmeth(self, w_classname, methname, contextclass, w_this):
+        if isinstance(w_classname, py_adapters.W_PyClassAdapter):
+            return w_classname.find_static_py_meth(self, methname).to_php(self)
+
         if isinstance(w_classname, W_InstanceObject):
             thisclass = klass = w_classname.getclass()
         else:
