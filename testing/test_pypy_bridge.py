@@ -1284,8 +1284,8 @@ class TestPyPyBridge(BaseTestInterpreter):
                     def f(a="a", b="b", c="c"):
                         return a + b + c
 
-                pysrc = "function g() { return call_py_func('A::f', [], ['a' => 'z']); }";
-                g = embed_php_func(pysrc)
+                phpsrc = "function g() { return call_py_func('A::f', [], ['a' => 'z']); }";
+                g = embed_php_func(phpsrc)
                 return g()
             EOD;
 

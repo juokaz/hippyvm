@@ -1358,11 +1358,12 @@ class Interpreter(object):
 
     def GETCLASS(self, bytecode, frame, space, arg, pc):
         w_obj = frame.pop().deref()
-        from hippy.module.pypy_bridge.py_adapters import W_PyGenericAdapter
-        if isinstance(w_obj, W_PyGenericAdapter):
-            # PHP interpreter is asking the class of a Python object
-            # Most likely the user is instntiating a Python class using
-            # 'new' in PHP.
+        from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
+        if isinstance(w_obj, W_PyClassAdapter):
+            # In normal PHP operation this bytecode takes a class name token
+            # and resolves it to a PHP class. This is used for instantiating
+            # classes for example (new MyClass()). However, we wish to allow
+            # constructs like 'new MyAdaptedPyClass()'. Hence this logic.
             frame.push(w_obj)
             return pc
         elif isinstance(w_obj, W_InstanceObject):

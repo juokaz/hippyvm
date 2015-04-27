@@ -621,6 +621,19 @@ class W_PyClassAdapter(PHPClassBase):
         w_py_inst = py_space.call_args(self.w_py_kls, w_py_args)
         return w_py_inst.to_php(interp)
 
+    def _lookup_method(self, name, contextclass, check_visibility):
+        py_space = self.w_py_kls.space
+
+        w_py_meth = py_space.getattr(self.w_py_kls, py_space.wrap("f"))
+        if not isinstance(w_py_meth, PyFunction):
+            assert False # XXX
+
+        interp = py_space.get_php_interp()
+        return w_py_meth.to_php(interp)
+
+    def get_wrapped_py_obj(self):
+        return self.w_py_kls
+
 k_PyClassAdapter = def_class('PyClassAdapter',
                              [], [],
                              instance_class=W_PyGenericAdapter)

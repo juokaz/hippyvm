@@ -7,7 +7,8 @@ from hippy.module.pypy_bridge.scopes import PHP_Scope, Py_Scope
 from hippy.module.pypy_bridge.util import _raise_php_bridgeexception
 from hippy.module.pypy_bridge.py_adapters import (
         new_embedded_py_func, k_BridgeException, W_PyFuncGlobalAdapter,
-        W_PyMethodFuncAdapter, W_PyFuncAdapter, W_PyGenericAdapter)
+        W_PyMethodFuncAdapter, W_PyFuncAdapter, W_PyGenericAdapter,
+        W_PyClassAdapter)
 from hippy.builtin_klass import k_Exception, W_ExceptionObject
 from hippy.error import PHPException, VisibilityError
 from hippy.klass import ClassBase
@@ -24,6 +25,7 @@ from pypy.interpreter.function import Function as Py_Function
 from pypy.interpreter.argument import Arguments
 from pypy.module.__builtin__ import compiling as py_compiling
 from pypy.objspace.std.typeobject import W_TypeObject
+from pypy.interpreter.function import Function as PyFunction
 
 from rpython.rlib import jit
 
@@ -258,6 +260,12 @@ def _call_py_func_find_static_py_meth(interp, class_name, meth_name):
             _raise_not_a_class(interp, class_name)
         return _call_py_func_find_static_py_meth_in_py_class(interp, w_py_kls,
                                                              meth_name)
+    elif isinstance(w_kls, W_PyClassAdapter):
+        # It's an adapted Python class.
+        w_py_kls = w_kls.get_wrapped_py_obj()
+        w_py_meth = interp.py_space.getattr(w_py_kls, interp.py_space.wrap(meth_name))
+        assert isinstance(w_py_meth, PyFunction) # XXX
+        return w_py_meth
     elif isinstance(w_kls, ClassBase):
         # A PHP class
         return _call_py_func_find_static_py_meth_in_php_class(interp, w_kls,
