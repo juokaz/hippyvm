@@ -231,7 +231,10 @@ def _call_py_func_find_static_py_meth_in_php_class(interp, w_php_kls, meth_name)
         return w_php_meth.method_func.get_wrapped_py_obj()
 
 def _call_py_func_find_static_py_meth_in_py_cls_adapter(interp, w_php_kls, meth_name):
-    return w_php_kls.find_static_py_meth(interp, meth_name)
+    try:
+        return w_php_kls.find_static_py_meth(interp, meth_name)
+    except VisibilityError:
+        return None
 
 def _call_py_func_find_static_py_meth(interp, class_name, meth_name):
     """Here we aim to lookup a static method given a class name

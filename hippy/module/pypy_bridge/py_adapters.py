@@ -621,24 +621,17 @@ class W_PyClassAdapter(PHPClassBase):
         w_py_inst = py_space.call_args(self.w_py_kls, w_py_args)
         return w_py_inst.to_php(interp)
 
-    def _lookup_method(self, name, contextclass, check_visibility):
-        py_space = self.w_py_kls.space
-
-        w_py_meth = py_space.getattr(self.w_py_kls, py_space.wrap("f"))
-        if not isinstance(w_py_meth, PyFunction):
-            assert False # XXX
-
-        interp = py_space.get_php_interp()
-        return w_py_meth.to_php(interp)
-
     def get_wrapped_py_obj(self):
         return self.w_py_kls
 
     def find_static_py_meth(self, interp, meth_name):
             w_py_meth = interp.py_space.getattr(self.w_py_kls,
                                                 interp.py_space.wrap(meth_name))
-            assert isinstance(w_py_meth, PyFunction) # XXX
-            return w_py_meth
+            if not isinstance(w_py_meth, PyFunction):
+                from hippy.error import VisibilityError
+                raise VisibilityError("undefined", self, meth_name, None)
+            else:
+                return w_py_meth
 
 k_PyClassAdapter = def_class('PyClassAdapter',
                              [], [],

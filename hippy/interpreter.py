@@ -87,8 +87,7 @@ from hippy.module.date import default_timezone
 from hippy.buffering import Buffer
 
 # Also needed so that PyException is defined early enough to hit the class cache.
-from hippy.module.pypy_bridge import py_adapters
-from hippy.module.pypy_bridge import php_adapters
+from hippy.module.pypy_bridge import py_adapters, php_adapters, util
 
 if is_optional_extension_enabled("mysql"):
     import ext_module.mysql.funcs
@@ -1397,7 +1396,15 @@ class Interpreter(object):
 
     def getstaticmeth(self, w_classname, methname, contextclass, w_this):
         if isinstance(w_classname, py_adapters.W_PyClassAdapter):
-            return w_classname.find_static_py_meth(self, methname).to_php(self)
+            # In this case, w_classname is not a class name at all.
+            # It is an adapted Python class.
+            try:
+                return w_classname.find_static_py_meth(self, methname).to_php(self)
+            except VisibilityError as e:
+                kls_name = w_classname.get_wrapped_py_obj().name
+                util._raise_php_bridgeexception(self,
+                                           "Undefined Python method %s::%s()" %
+                                           (kls_name, methname))
 
         if isinstance(w_classname, W_InstanceObject):
             thisclass = klass = w_classname.getclass()
