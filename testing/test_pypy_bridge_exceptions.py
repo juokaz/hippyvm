@@ -921,6 +921,7 @@ EOD;
         assert php_space.str_w(output[0]) == err_s
 
     def test_call_pyclass_attr(self, php_space):
+        expected_warnings = ["Fatal error: Call to undefined method A::x()"]
         output = self.run('''
         $src = <<<EOD
         def f():
@@ -930,16 +931,8 @@ EOD;
         EOD;
         embed_py_func_global($src);
         $a = f();
-
-        try {
-            $a::x(); // bogus
-            echo "fail";
-        } catch(BridgeException $e) {
-            echo $e->getMessage();
-        }
-        ''')
-        err_s = "Undefined Python method A::x()"
-        assert php_space.str_w(output[0]) == err_s
+        $a::x(); // bogus
+        ''', expected_warnings)
 
     def test_call_py_func_on_pyclass_attr(self, php_space):
         output = self.run('''

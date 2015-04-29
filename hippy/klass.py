@@ -526,7 +526,8 @@ class ClassBase(AbstractFunction, AccessMixin):
 
     def create_instance(self, interp, storage_w):
         if self.custom_instance_class is not None:
-            w_res = self.custom_instance_class(self, storage_w)
+            inst_kls = self.custom_instance_class
+            w_res = inst_kls(self, storage_w)
             w_res.setup(interp)
         else:
             w_res = W_InstanceObject(self, storage_w)

@@ -498,7 +498,12 @@ class Interpreter(object):
             py_scope = frame.bytecode.py_scope
             if py_scope is not None:
                 ph_v = py_scope.ph_lookup_local_recurse(name)
-                if ph_v is not None: return ph_v
+                if ph_v is not None:
+                    from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
+                    if isinstance(ph_v, W_PyClassAdapter):
+                        return ph_v.getclass()
+                    else:
+                        return None
                 kls = self._class_get(name)
                 if kls is not None:
                     return kls
@@ -1358,15 +1363,7 @@ class Interpreter(object):
 
     def GETCLASS(self, bytecode, frame, space, arg, pc):
         w_obj = frame.pop().deref()
-        from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
-        if isinstance(w_obj, W_PyClassAdapter):
-            # In normal PHP operation this bytecode takes a class name token
-            # and resolves it to a PHP class. This is used for instantiating
-            # classes for example (new MyClass()). However, we wish to allow
-            # constructs like 'new MyAdaptedPyClass()'. Hence this logic.
-            frame.push(w_obj)
-            return pc
-        elif isinstance(w_obj, W_InstanceObject):
+        if isinstance(w_obj, W_InstanceObject):
             frame.push(w_obj.getclass())
             return pc
         name = space.getclassintfname(w_obj)
@@ -1395,16 +1392,16 @@ class Interpreter(object):
         return pc
 
     def getstaticmeth(self, w_classname, methname, contextclass, w_this):
-        if isinstance(w_classname, py_adapters.W_PyClassAdapter):
-            # In this case, w_classname is not a class name at all.
-            # It is an adapted Python class.
-            try:
-                return w_classname.find_static_py_meth(self, methname).to_php(self)
-            except VisibilityError as e:
-                kls_name = w_classname.name
-                util._raise_php_bridgeexception(self,
-                                           "Undefined Python method %s::%s()" %
-                                           (kls_name, methname))
+        #if isinstance(w_classname, py_adapters.W_PyClassAdapter):
+        #    # In this case, w_classname is not a class name at all.
+        #    # It is an adapted Python class.
+        #    try:
+        #        return w_classname.find_static_py_meth(self, methname).to_php(self)
+        #    except VisibilityError as e:
+        #        kls_name = w_classname.name
+        #        util._raise_php_bridgeexception(self,
+        #                                   "Undefined Python method %s::%s()" %
+        #                                   (kls_name, methname))
 
         if isinstance(w_classname, W_InstanceObject):
             thisclass = klass = w_classname.getclass()
@@ -1441,8 +1438,9 @@ class Interpreter(object):
     def ARG_BY_VALUE(self, bytecode, frame, space, arg, pc):
         w_argument = frame.pop().deref()
         func = frame.pop()
-        from hippy.module.pypy_bridge.py_adapters import W_PyGenericAdapter
-        if isinstance(func, W_PyGenericAdapter):
+        from hippy.module.pypy_bridge.py_adapters import (
+            W_PyGenericAdapter, W_PyClassAdapter)
+        if isinstance(func, W_PyGenericAdapter) or isinstance(func, W_PyClassAdapter):
             func = func.get_callable()
         assert isinstance(func, AbstractFunction)
         if func.needs_ref(arg):
