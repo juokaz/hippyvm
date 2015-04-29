@@ -1401,7 +1401,7 @@ class Interpreter(object):
             try:
                 return w_classname.find_static_py_meth(self, methname).to_php(self)
             except VisibilityError as e:
-                kls_name = w_classname.get_wrapped_py_obj().name
+                kls_name = w_classname.name
                 util._raise_php_bridgeexception(self,
                                            "Undefined Python method %s::%s()" %
                                            (kls_name, methname))

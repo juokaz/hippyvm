@@ -605,11 +605,24 @@ from hippy.builtin_klass import k_Exception
 # Indicates an error in PHP->Py glue code
 k_BridgeException = def_class('BridgeException', [], [], extends=k_Exception)
 
-from hippy.klass import ClassBase as PHPClassBase
-class W_PyClassAdapter(PHPClassBase):
+from hippy.klass import ClassBase
+class W_PyClassAdapter(ClassBase):
+
+    _immutable_fields_ = ["name"]
 
     def __init__(self, w_py_kls):
-        PHPClassBase.__init__(self, w_py_kls.name)
+        from pypy.objspace.std.typeobject import W_TypeObject
+        from pypy.module.__builtin__.interp_classobj import W_ClassObject
+        assert isinstance(w_py_kls, W_TypeObject) or \
+            isinstance(w_py_kls, W_ClassObject)
+
+        self.name = None
+        if isinstance(w_py_kls, W_TypeObject):
+            self.name = w_py_kls.name
+        elif isinstance(w_py_kls, W_ClassObject):
+            self.name = w_py_kls.name
+
+        ClassBase.__init__(self, self.name)
         self.w_py_kls = w_py_kls
 
     def call_args(self, interp, args_w, w_this=None, thisclass=None,
