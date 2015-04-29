@@ -667,7 +667,7 @@ class W_PyClassAdapter(W_InstanceObject):
                                                 interp.py_space.wrap(meth_name))
             if not isinstance(w_py_meth, PyFunction):
                 from hippy.error import VisibilityError
-                raise VisibilityError("undefined", self, meth_name, None)
+                raise VisibilityError("undefined", self.w_php_kls, meth_name, None)
             else:
                 return w_py_meth
 
@@ -699,6 +699,9 @@ class W_PyClassAdapterClass(ClassBase):
             self.name = w_py_kls.name
         elif isinstance(w_py_kls, W_ClassObject):
             self.name = w_py_kls.name
+        else:
+            assert False
+        assert self.name is not None
 
         ClassBase.__init__(self, self.name)
         self.w_py_kls = w_py_kls
@@ -713,11 +716,13 @@ class W_PyClassAdapterClass(ClassBase):
                 from hippy.error import VisibilityError
                 raise VisibilityError("undefined", self, meth_name, None)
             else:
+                import pdb; pdb.set_trace()
                 return w_py_meth
 
     def getstaticmeth(self, methname, contextclass, w_this, interp):
         # we ignore access rules, as Python has none
-        return self.find_static_py_meth(interp, methname).to_php(interp)
+        w_py_func = self.find_static_py_meth(interp, methname)
+        return W_PyMethodFuncAdapter(interp, w_py_func)
 
     # Some PHP bytecodes will insantiate classes by calling the internal
     # PHP class representation.
@@ -727,6 +732,10 @@ class W_PyClassAdapterClass(ClassBase):
         w_py_args = Arguments(py_space, [x.to_py(interp) for x in args_w])
         return py_space.call_args(self.w_py_kls, w_py_args).to_php(interp)
 
+    def create_instance(self, interp, storage_w):
+        assert False
+
+
 k_PyClassAdapterClass = def_class('PyClassAdapterClass',
-                             [], [],
-                             instance_class=W_PyClassAdapterClass)
+                             [], [])
+#instance_class=W_PyClassAdapterClass)
