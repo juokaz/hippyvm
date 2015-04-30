@@ -614,7 +614,7 @@ class W_PyClassAdapter(W_InstanceObject):
     # multiple inheritance from W_Object and W_ClassBase. This
     # would require major restructuring due to _mixin_.
 
-    _immutable_fields_ = ["w_py_kls", "w_php_kls", "interp"]
+    _immutable_fields_ = ["w_py_kls", "interp"]
 
     def setup_instance(self, interp, w_py_kls):
         from pypy.objspace.std.typeobject import W_TypeObject
@@ -624,9 +624,6 @@ class W_PyClassAdapter(W_InstanceObject):
 
         self.w_py_kls = w_py_kls
         self.interp = interp
-
-        # If the PHP interpreter ever asks for my class, this is what I return
-        self.w_php_kls = W_PyClassAdapterClass(w_py_kls)
 
     @staticmethod
     def from_w_py_inst(interp, w_py_kls):
@@ -647,15 +644,17 @@ class W_PyClassAdapter(W_InstanceObject):
     def get_wrapped_py_obj(self):
         return self.w_py_kls
 
+    # PHP interpreter asking for the class of a PyClassAdapter
+    @jit.elidable
     def getclass(self):
-        return self.w_php_kls
+        return W_PyClassAdapterClass(self.w_py_kls)
 
     def find_static_py_meth(self, interp, meth_name):
             w_py_meth = interp.py_space.getattr(self.w_py_kls,
                                                 interp.py_space.wrap(meth_name))
             if not isinstance(w_py_meth, PyFunction):
                 from hippy.error import VisibilityError
-                raise VisibilityError("undefined", self.w_php_kls, meth_name, None)
+                raise VisibilityError("undefined", self.getclass(), meth_name, None)
             else:
                 return w_py_meth
 
