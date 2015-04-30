@@ -716,13 +716,15 @@ class W_PyClassAdapterClass(ClassBase):
                 from hippy.error import VisibilityError
                 raise VisibilityError("undefined", self, meth_name, None)
             else:
-                import pdb; pdb.set_trace()
                 return w_py_meth
 
     def getstaticmeth(self, methname, contextclass, w_this, interp):
         # we ignore access rules, as Python has none
         w_py_func = self.find_static_py_meth(interp, methname)
-        return W_PyMethodFuncAdapter(interp, w_py_func)
+        from hippy import consts
+        from hippy.klass import Method
+        flags = consts.ACC_STATIC | consts.ACC_PUBLIC
+        return Method(w_py_func.to_php(interp), flags, self)
 
     # Some PHP bytecodes will insantiate classes by calling the internal
     # PHP class representation.

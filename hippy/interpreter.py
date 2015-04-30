@@ -487,6 +487,7 @@ class Interpreter(object):
             self.fatal("Cannot use '%s' as class name as it is reserved" % name)
 
     def _lookup_class(self, name, autoload=True):
+        from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
         if not name:
             return None
         if name and name[0] == '\\':
@@ -499,7 +500,6 @@ class Interpreter(object):
             if py_scope is not None:
                 ph_v = py_scope.ph_lookup_local_recurse(name)
                 if ph_v is not None:
-                    from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
                     if isinstance(ph_v, W_PyClassAdapter):
                         return ph_v.getclass()
                     else:
@@ -510,7 +510,12 @@ class Interpreter(object):
                 if autoload:
                     kls = self._autoload(name)
                     if kls is not None: return kls
-                return py_scope.ph_lookup_global(name)
+                ph_v = py_scope.ph_lookup_global(name)
+                if ph_v is not None:
+                    if isinstance(ph_v, W_PyClassAdapter):
+                        return ph_v.getclass()
+                    else:
+                        return None
         kls = self._class_get(name)
         if kls is not None:
             return kls
