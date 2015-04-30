@@ -87,7 +87,8 @@ from hippy.module.date import default_timezone
 from hippy.buffering import Buffer
 
 # Also needed so that PyException is defined early enough to hit the class cache.
-from hippy.module.pypy_bridge import py_adapters, php_adapters, util
+from hippy.module.pypy_bridge import py_adapters
+from hippy.module.pypy_bridge import php_adapters
 
 if is_optional_extension_enabled("mysql"):
     import ext_module.mysql.funcs
@@ -487,13 +488,13 @@ class Interpreter(object):
             self.fatal("Cannot use '%s' as class name as it is reserved" % name)
 
     def _lookup_class(self, name, autoload=True):
-        from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
         if not name:
             return None
         if name and name[0] == '\\':
             name = name[1:]
         if not name:
             return None
+        from hippy.module.pypy_bridge.py_adapters import W_PyClassAdapter
         frame = self.topframeref()
         if frame is not None:
             py_scope = frame.bytecode.py_scope
@@ -517,12 +518,12 @@ class Interpreter(object):
                     else:
                         return None
         kls = self._class_get(name)
-        if kls is not None:
-            return kls
-        if autoload:
-            return self._autoload(name)
-        else:
-            return None
+        if kls is None:
+            if autoload:
+                kls = self._autoload(name)
+            else:
+                return None
+        return kls
 
     def _get_self_class(self):
         contextclass = self.get_contextclass()
@@ -1397,17 +1398,6 @@ class Interpreter(object):
         return pc
 
     def getstaticmeth(self, w_classname, methname, contextclass, w_this):
-        #if isinstance(w_classname, py_adapters.W_PyClassAdapter):
-        #    # In this case, w_classname is not a class name at all.
-        #    # It is an adapted Python class.
-        #    try:
-        #        return w_classname.find_static_py_meth(self, methname).to_php(self)
-        #    except VisibilityError as e:
-        #        kls_name = w_classname.name
-        #        util._raise_php_bridgeexception(self,
-        #                                   "Undefined Python method %s::%s()" %
-        #                                   (kls_name, methname))
-
         if isinstance(w_classname, W_InstanceObject):
             thisclass = klass = w_classname.getclass()
         else:

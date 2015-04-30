@@ -181,9 +181,6 @@ class W_EmbeddedPyCallable(W_InvokeCall):
     def get_wrapped_py_obj(self):
         return self.w_py_func
 
-    def bind(self, w_inst, w_php_kls):
-        return self # ?
-
 class W_PyFuncGlobalAdapter(AbstractFunction):
     _immutable_fields_ = ["w_py_callable"]
 
@@ -619,9 +616,6 @@ class W_PyClassAdapter(W_InstanceObject):
 
     _immutable_fields_ = ["w_py_kls", "w_php_kls", "interp"]
 
-    #def __init__(self, klass, initial_storage):
-    #    W_InstanceObject.__init__(self, klass, initial_storage)
-
     def setup_instance(self, interp, w_py_kls):
         from pypy.objspace.std.typeobject import W_TypeObject
         from pypy.module.__builtin__.interp_classobj import W_ClassObject
@@ -639,12 +633,6 @@ class W_PyClassAdapter(W_InstanceObject):
         w_py_adptr = W_PyClassAdapter(k_PyClassAdapter, [])
         w_py_adptr.setup_instance(interp, w_py_kls)
         return w_py_adptr
-
-    #@classmethod
-    #def from_w_py_inst(cls, interp, w_py_inst):
-    #    w_py_adptr = W_PyGenericAdapter(k_PyGenericAdapter, [])
-    #    w_py_adptr.setup_instance(interp, w_py_inst)
-    #    return w_py_adptr
 
     @jit.unroll_safe
     def call_args(self, interp, args_w, w_this=None, thisclass=None,
@@ -740,4 +728,3 @@ class W_PyClassAdapterClass(ClassBase):
 
 k_PyClassAdapterClass = def_class('PyClassAdapterClass',
                              [], [])
-#instance_class=W_PyClassAdapterClass)

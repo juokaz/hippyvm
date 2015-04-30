@@ -25,7 +25,6 @@ from pypy.interpreter.function import Function as Py_Function
 from pypy.interpreter.argument import Arguments
 from pypy.module.__builtin__ import compiling as py_compiling
 from pypy.objspace.std.typeobject import W_TypeObject
-from pypy.interpreter.function import Function as PyFunction
 
 from rpython.rlib import jit
 
