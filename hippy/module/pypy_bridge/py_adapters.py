@@ -662,6 +662,9 @@ class W_PyClassAdapter(W_InstanceObject):
     def get_callable(self):
         return W_EmbeddedPyCallable(self.interp, self.w_py_kls)
 
+    def to_py(self, interp):
+        return self.w_py_kls
+
 k_PyClassAdapter = def_class('PyClassAdapter',
                              [], [],
                              instance_class=W_PyClassAdapter)

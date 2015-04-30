@@ -1548,6 +1548,26 @@ class TestPyPyBridge(BaseTestInterpreter):
         ''')
         assert php_space.int_w(output[0]) == 666
 
+    def test_unwrap_pyclassadapter(self, php_space):
+        output = self.run('''
+        $src1 = <<<EOD
+        def f():
+            class A:
+                x = 1212
+            return A
+        EOD;
+        embed_py_func_global($src1);
+
+        $src2 = <<<EOD
+        def g(a):
+            return a.x
+        EOD;
+        embed_py_func_global($src2);
+
+        echo g(f());
+        ''')
+        assert php_space.int_w(output[0]) == 1212
+
 class TestPyPyBridgeInterp(object):
 
     def test_php_code_cache(self):
