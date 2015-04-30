@@ -625,9 +625,9 @@ class W_PyClassAdapter(W_InstanceObject):
         self.w_py_kls = w_py_kls
         self.interp = interp
 
-    @staticmethod
-    def from_w_py_inst(interp, w_py_kls):
-        w_py_adptr = W_PyClassAdapter(k_PyClassAdapter, [])
+    @classmethod
+    def from_w_py_inst(cls, interp, w_py_kls):
+        w_py_adptr = cls(k_PyClassAdapter, [])
         w_py_adptr.setup_instance(interp, w_py_kls)
         return w_py_adptr
 
