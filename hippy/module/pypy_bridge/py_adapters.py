@@ -658,6 +658,7 @@ class W_PyClassAdapter(W_InstanceObject):
             else:
                 return w_py_meth
 
+    @jit.elidable
     def get_callable(self):
         return W_EmbeddedPyCallable(self.interp, self.w_py_kls)
 
@@ -675,7 +676,7 @@ class W_PyClassAdapterClass(ClassBase):
     # values from that of classes. Classes are certainly not first class in
     # PHP.
 
-    _immutable_fields_ = ["name"]
+    _immutable_fields_ = ["name", "w_py_kls"]
 
     def __init__(self, w_py_kls):
         from pypy.objspace.std.typeobject import W_TypeObject
@@ -696,6 +697,7 @@ class W_PyClassAdapterClass(ClassBase):
         ClassBase.__init__(self, self.name)
         self.w_py_kls = w_py_kls
 
+    @jit.elidable
     def get_wrapped_py_obj(self):
         return self.w_py_kls
 
@@ -718,6 +720,7 @@ class W_PyClassAdapterClass(ClassBase):
 
     # Some PHP bytecodes will insantiate classes by calling the internal
     # PHP class representation.
+    @jit.unroll_safe
     def call_args(self, interp, args_w, w_this=None, thisclass=None, closureargs=None):
         from pypy.interpreter.argument import Arguments
         py_space = interp.py_space
@@ -728,5 +731,4 @@ class W_PyClassAdapterClass(ClassBase):
         assert False
 
 
-k_PyClassAdapterClass = def_class('PyClassAdapterClass',
-                             [], [])
+k_PyClassAdapterClass = def_class('PyClassAdapterClass', [], [])
