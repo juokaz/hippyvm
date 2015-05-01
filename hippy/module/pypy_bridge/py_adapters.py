@@ -645,7 +645,6 @@ class W_PyClassAdapter(W_InstanceObject):
         return self.w_py_kls
 
     # PHP interpreter asking for the class of a PyClassAdapter
-    @jit.elidable
     def getclass(self):
         return W_PyClassAdapterClass(self.w_py_kls)
 
@@ -658,11 +657,10 @@ class W_PyClassAdapter(W_InstanceObject):
             else:
                 return w_py_meth
 
-    @jit.elidable
     def get_callable(self):
         return W_EmbeddedPyCallable(self.interp, self.w_py_kls)
 
-    def to_py(self, interp):
+    def to_py(self, interp, w_php_ref=None):
         return self.w_py_kls
 
 k_PyClassAdapter = def_class('PyClassAdapter',
@@ -697,7 +695,6 @@ class W_PyClassAdapterClass(ClassBase):
         ClassBase.__init__(self, self.name)
         self.w_py_kls = w_py_kls
 
-    @jit.elidable
     def get_wrapped_py_obj(self):
         return self.w_py_kls
 
