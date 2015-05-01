@@ -582,7 +582,6 @@ class TestPyPyBridgeScope(BaseTestInterpreter):
     # Should be possible to modify global PHP scope by this mechanism
     # Currently: PHPGlobalScope' object has no attribute 'x'
     # Probably just needs a __setattr__()
-    @pytest.mark.xfail
     def test_php_global_scope_modify(self, php_space):
         output = self.run('''
             $x = 10;
